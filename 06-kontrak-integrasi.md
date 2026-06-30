@@ -58,10 +58,12 @@ via client SDK** untuk update prospek. Artinya ada **dua jalur** untuk operasi y
 1. Jalur HTTP (Admin SDK, ada `updatedBy`, cek token revoked).
 2. Jalur langsung client SDK (tanpa server, bergantung Security Rules).
 
-**[VERIFIKASI]** Tentukan mana yang sebenarnya dipakai mobile. Jika mobile pakai jalur (2),
-endpoint (1) mungkin **dead code** — atau sebaliknya. Memilih satu jalur menghindari
-perilaku berbeda (mis. field `updatedBy`/`visitedAt` hanya terisi di salah satu jalur).
-Tercatat sebagai [BUG #INT-1](07-bug-register.md#int-1).
+**TERJAWAB (2026-06-30):** mobile memakai **jalur (2) — `updateDoc` client SDK langsung**
+(`src/services/firebase/prospects.ts:76`). Grep seluruh kode mobile: **0 referensi** ke
+`EXPO_PUBLIC_API_URL`/`/api/mobile/.../visit`. Jadi endpoint backoffice (1) adalah **dead code**,
+dan `actorUid` dikirim dari client (tak terjamin = pelaku asli). Lihat
+[T-41](10-task-tracker.md#t-41--p1--visit-prospek-lewat-client-sdk-endpoint-http-backoffice-dead-code-)
+untuk keputusan & perbaikan. Tercatat semula sebagai [BUG #INT-1](07-bug-register.md#int-1).
 
 ## Risiko drift skema (tidak ada tipe bersama)
 

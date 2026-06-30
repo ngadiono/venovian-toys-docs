@@ -71,6 +71,24 @@ Prioritas pemilik: **data keuangan benar** + **scan area akurat**, tetap **grati
 | T-39 | P1 | [ ] | Scan Area | Patuhi rate-limit Nominatim/Overpass + mirror+retry; amankan endpoint (B2) |
 | T-40 | P2 | [ ] | Scan Area | Loop umpan balik lapangan untuk menyetel skor + confidence (B3,B4,B5) |
 
+### Temuan review mobile (2026-06-30) — lihat [detail](#detail-temuan-review-mobile)
+
+> Mobile menulis Firestore **langsung dari device**. Beberapa bug **mengulang** bug backoffice
+> (logika titipan terduplikasi, [INT-2](07-bug-register.md#int-2)) → makin menguatkan T-33/T-08.
+
+| ID | Prioritas | Status | Area | Task | Verifikasi |
+|----|:--------:|:------:|------|------|:----------:|
+| T-41 | P1 | [ ] | Keamanan | Visit prospek pakai `updateDoc` langsung + `actorUid` dari client; endpoint HTTP backoffice = dead code | ✅ verified |
+| T-42 | P0 | [ ] | Titipan | Duplikat `productId` 1 surat → delta stok hilang (cermin T-22) | 🔎 agent |
+| T-43 | P1 | [ ] | Titipan | `createConsignmentNote` mobile tanpa guard `warehouseStock ≥ qty` (cermin T-21) | 🔎 agent |
+| T-44 | P1 | [ ] | Keuangan | Modal titip simpan `unitPrice` per-pcs pecahan (÷packSize tanpa bulat); server percaya mentah | ✅ verified |
+| T-45 | P1 | [ ] | Keuangan | `dashboard.totalIn` jumlah `collection`+`revenue` → potensi dobel pemasukan | ✅ verified |
+| T-46 | P1 | [ ] | Keuangan | Tulis tanpa validasi (qty/price NaN/negatif); `Math.max(0,…)` tutupi drift; fallback `sellingUnitPrice` pack salah | 🔎 agent |
+| T-47 | P1 | [ ] | Keamanan | Tak ada cek `userProfiles` role/status sesudah login → akun nonaktif tetap akses penuh | 🔎 agent |
+| T-48 | P2 | [ ] | Kuota | `onSnapshot` full-collection tanpa limit (customers/prospects) + prospek tanpa filter `deletedAt` | 🔎 agent |
+| T-49 | P2 | [ ] | UI | Input qty: `packSize` kosong → baris 0-pcs; guard anti dobel-tap; fallback pakai packSize editable | 🔎 agent |
+| T-50 | P3 | [ ] | UI | ISO tanggal bocor (nextVisitAt/joinDate); `packSize=0` → label NaN; race set-nama; error profil ditelan | 🔎 agent |
+
 ---
 
 ## Detail task
@@ -277,6 +295,106 @@ movement; `publishConsignmentNote` hanya flip status. Apakah draft seharusnya su
 
 ---
 
+## Detail temuan review mobile
+
+> Review kode mobile 2026-06-30 (3 agent paralel + verifikasi langsung). Repo:
+> `venovian-toys-mobile`. ✅ = saya baca/verifikasi sendiri. **Konvensi terbukti benar:**
+> `lineTotal = quantitySold(pcs) × unitPrice(per-pcs)` — sama dgn backoffice, BUKAN bug.
+
+### T-41 · P1 · Visit prospek lewat client SDK; endpoint HTTP backoffice dead code ✅
+**File:** `src/services/firebase/prospects.ts:76-90`
+**Bukti:** `updateProspectVisit` memanggil `updateDoc(doc(db,'scanProspects',id), {... updatedBy: actorUid})`
+langsung. Grep seluruh `src` mobile: **0 referensi** ke `EXPO_PUBLIC_API_URL`/`/api/mobile/.../visit`.
+Jadi endpoint backoffice `PATCH /api/mobile/prospects/[id]/visit` **tidak dipakai (dead code)**,
+dan `actorUid` adalah string dari client (bisa diisi uid siapa pun).
+**Dampak:** menulis langsung ke koleksi `scanProspects` yang dipakai bersama backoffice;
+keamanan 100% bergantung Firestore Rules (lihat T-01/T-02). `updatedBy` tak terjamin = pelaku asli.
+**Fix:** pilih SATU jalur — entah pakai endpoint HTTP (Bearer token, `updatedBy=uid` dari server)
+lalu hapus `updateProspectVisit` langsung, ATAU kunci Rules `scanProspects`: hanya field visit
+yang boleh ditulis + `request.auth.uid == request.resource.data.updatedBy`. **Menyelesaikan
+[INT-1](07-bug-register.md#int-1)**; jika endpoint dipertahankan, [T-24](#t-24--p1--api-visit-verifikasi-token-tapi-tanpa-cek-profilrole-) tetap perlu diperbaiki.
+
+### T-42 · P0 · Duplikat productId → delta stok hilang (cermin backoffice T-22) 🔎
+**File:** `src/services/firebase/consignment-notes.ts:58-66,~197`
+**Bukti (agent):** dua item ber-`productId` sama membaca snapshot produk yang sama lalu menulis
+`currentWarehouse - item.quantitySent` independen → **last write wins**, delta item pertama hilang.
+**Fix:** pra-agregasi item per `productId` (Map delta), satu `transaction.update` per produk.
+
+### T-43 · P1 · Tanpa guard stok cukup → gudang minus (cermin T-21) 🔎
+**File:** `src/services/firebase/consignment-notes.ts:201-205`
+**Bukti (agent):** `warehouseStock: currentWarehouse - item.quantitySent` tanpa cek `>=`. Oversell
+mendorong stok negatif. Server adalah penjaga terakhir (UI hanya cek stok dari subscription stale).
+**Fix:** dalam transaksi, lempar bila `currentWarehouse < item.quantitySent`.
+
+### T-44 · P1 · `unitPrice` per-pcs pecahan tersimpan permanen ✅
+**File:** `src/components/AddConsignmentModal.tsx:61-63` → `consignment-notes.ts:~101,156`
+**Bukti:** `calcUnitPricePerPcs = displayPrice / Math.max(1, packSize)` **tanpa pembulatan**;
+server menyimpan `unitPrice` & `lineTotal = quantitySent × unitPrice` mentah.
+**Skenario:** 5 pack × Rp10.000, packSize 3 → per-pcs 3.333,33; tersimpan 15 × 3.333,33 =
+Rp49.999,95, bukan Rp50.000. Rupiah pecahan permanen + UI "Nilai" bisa beda dari yang tersimpan.
+**Fix:** kirim `sellingUnitPrice`+`packSize`, hitung lineTotal dari harga pack di server; atau
+bulatkan ke integer sebelum simpan. **Ini contoh konkret [T-34](#t-34--p1--uang--integer-rupiah-jangan-simpan-hasil-bagi-a2).**
+
+### T-45 · P1 · `dashboard.totalIn` potensi dobel pemasukan ✅
+**File:** `src/services/firebase/dashboard.ts:36,113`
+**Bukti:** `if (type === 'collection' || type === 'revenue') totalIn += amount;`. Dedup yang ada
+(`postedMovementIds`/`postedProductIds`) hanya melindungi sisi modal/expense, **bukan** sisi
+pemasukan. Bila backoffice mencatat `revenue` (akrual saat invoice) **dan** `collection` (kas saat
+bayar) untuk satu penjualan → terhitung dua kali. Plus seluruh `financeTransactions`+`products`
+di-scan penuh tiap buka dashboard (kuota Spark) dan modal "legacy" diturunkan dari stok hidup
+(bisa drift). **Verify** semantik tipe finance backoffice. **Fix:** jumlahkan hanya SATU dari
+revenue/collection; jadikan dashboard turunan dari sumber tunggal ([T-33](#t-33--p1--satu-modul-rumus-uangstok-dipakai-bersama-a1)/[T-35](#t-35--p1--halaman-audit-data-pemeriksa-invarianrekonsiliasi-a3)).
+
+### T-46 · P1 · Validasi tulis lemah + clamp tutupi drift 🔎
+**File:** `consignment-notes.ts:95-102`, `customer-stocks.ts:150-156,69`
+**Bukti (agent):** tak ada cek `quantitySent>0 & integer`, `unitPrice finite & ≥0` sebelum tulis
+(NaN/negatif bisa masuk). `Math.max(0, consignedValue - lineTotal)` meng-clamp diam — korupsi tak
+terlihat. Fallback `sellingUnitPrice = ... || unitPrice` salah untuk produk pack (mestinya
+`unitPrice × packSize`). **Fix:** validasi item sebelum tulis; ganti clamp dgn alert/log atau
+hitung ulang agregat dari `customerStocks`; perbaiki fallback pack.
+
+### T-47 · P1 · Tak ada cek role/status sesudah login 🔎
+**File:** `src/store/auth-store.ts:69-83`
+**Bukti (agent):** sesudah auth hanya ambil nama tampilan; tak muat `userProfiles` untuk cek
+role/status. Akun yang ada di Firebase Auth tapi dinonaktifkan di data bisnis tetap login penuh &
+menulis Firestore langsung. **Fix:** muat `userProfiles`, tolak (sign out) bila tak ada/role tak
+berhak/`inactive` sebelum sesi aktif. (Cermin kekhawatiran [T-24](#t-24--p1--api-visit-verifikasi-token-tapi-tanpa-cek-profilrole-).)
+
+### T-48 · P2 · Listener full-collection tanpa batas 🔎
+**File:** `customers.ts:86`, `prospects.ts:96`
+**Bukti (agent):** `subscribeToCustomers`/`subscribeToProspects` = `onSnapshot` seluruh koleksi
+tanpa `limit`; `scanProspects` juga tanpa `where('deletedAt','==',null)` (arsip ikut terbaca,
+hanya `rejected` difilter di klien). Banyak device → kuras kuota baca Spark. **Fix:** tambah
+`limit`/scope per-area + filter `deletedAt` server-side. (Terkait [T-15](10-task-tracker.md), [T-38](#).)
+
+### T-49 · P2 · Edge input kuantitas & dobel-submit 🔎
+**File:** `AddConsignmentModal.tsx:35-52,146,184-188`, `CustomerStockDetailModal.tsx:166-222`
+**Bukti (agent):** `packSize` free-text — kosong → `calcPcsSent = qty×0 = 0` lolos cek `quantity<=0`
+(yang cek jumlah pack, bukan pcs) → baris 0-pcs ber-nilai non-0. Handler sale/withdraw tak ada
+`if (isSubmitting) return;` di awal → dobel-tap cepat bisa picu 2 penjualan. Fallback harga pack
+pakai `packSize` editable (bukan milik produk) → harga bisa berubah-ubah. **Fix:** validasi
+`calcPcsSent>0` sebelum submit; guard re-entry; pakai `product.packSize` untuk fallback.
+
+### T-50 · P3 · Kumpulan minor UI/robustness 🔎
+- ISO tanggal mungkin bocor ke layar: `customers.tsx:520,522` (`nextVisitAt`/`joinDate` di-render
+  mentah) — verifikasi tipe, format ke `2 Feb 2026`.
+- `Math.floor(qtyRemaining / packSize)` saat `packSize=0` → `NaN`/`Infinity` di label
+  (`CustomerStockDetailModal.tsx:47-53`, `CustomerStockReceiptModal.tsx:31-33`); guard `packSize>0`.
+- Race set-nama di `auth-store.ts:80` (async profil resolve sesudah logout/relogin) — cek
+  `state.user?.uid === user.uid` sebelum apply.
+- `getUserProfileName` (`auth.ts:18-27`) telan semua error → permission-denied tak terlihat;
+  minimal `console.error`.
+
+### ❌ Diselidiki, BUKAN bug (mobile)
+- **`lineTotal = quantity × unitPrice`** di `customer-stocks.ts`: ✅ benar — `unitPrice` per-pcs
+  konsisten dgn backoffice. Tidak ada inflasi (beda dari isu pembulatan T-44 yang soal *pembagian*).
+- **`config.ts` secret**: hanya config Firebase web publik (`apiKey` dll) lewat `EXPO_PUBLIC_*` —
+  aman dikirim ke device. Tidak ada private key/admin secret. Bersih.
+- **`client.ts` persistence**: AsyncStorage terpasang benar dgn fallback. Bersih.
+- **`catalog.tsx`, `invoices.ts`, `products.ts`**: read-only display, tak ada mutasi uang. Bersih.
+
+---
+
 ## Changelog task
 
 Catat perubahan status penting di sini (tanggal — ID — aksi):
@@ -284,3 +402,4 @@ Catat perubahan status penting di sini (tanggal — ID — aksi):
 - 2026-06-30 — Backlog dibuat (T-01…T-17).
 - 2026-06-30 — Review backoffice: T-18…T-32 ditambah (2 P0 verified, 5 P1, dst). 1 false-positive (pack line-total) ditolak setelah verifikasi.
 - 2026-06-30 — Penguatan struktural keuangan & scan area: T-33…T-40 (lihat [doc 11](11-fokus-keuangan-scan-area.md)).
+- 2026-06-30 — Review mobile: T-41…T-50 (1 P0, 6 P1). Jalur visit prospek = DIRECT (INT-1 terjawab; endpoint backoffice dead code). Mobile mengulang bug stok backoffice (T-42=T-22, T-43=T-21).
