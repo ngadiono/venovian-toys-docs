@@ -56,6 +56,21 @@ Sumber tunggal untuk melacak pekerjaan pengembangan Venovian Toys. File ini
 
 > Legenda verifikasi: ✅ saya cek langsung ke kode · 🔎 temuan agent, spesifik (file:line), perlu konfirmasi saat dikerjakan · ❓ keputusan produk, bukan bug murni.
 
+### Penguatan struktural — keuangan & scan area (2026-06-30) — lihat [11](11-fokus-keuangan-scan-area.md)
+
+Prioritas pemilik: **data keuangan benar** + **scan area akurat**, tetap **gratis**.
+
+| ID | Prioritas | Status | Area | Task |
+|----|:--------:|:------:|------|------|
+| T-33 | P1 | [ ] | Keuangan | Satu modul rumus uang/stok dipakai bersama (A1) |
+| T-34 | P1 | [ ] | Keuangan | Uang = integer rupiah; jangan simpan hasil bagi (A2) |
+| T-35 | P1 | [ ] | Keuangan | Halaman "Audit Data" pemeriksa invarian/rekonsiliasi (A3) |
+| T-36 | P2 | [ ] | Keuangan | Idempotensi anti dobel-submit invoice/pembayaran (A4) |
+| T-37 | P2 | [ ] | Keuangan | Jejak audit tiap mutasi uang + golden cases (A5,A6) |
+| T-38 | P1 | [ ] | Scan Area | Cache hasil Overpass/geocode di Firestore + TTL (B1) |
+| T-39 | P1 | [ ] | Scan Area | Patuhi rate-limit Nominatim/Overpass + mirror+retry; amankan endpoint (B2) |
+| T-40 | P2 | [ ] | Scan Area | Loop umpan balik lapangan untuk menyetel skor + confidence (B3,B4,B5) |
+
 ---
 
 ## Detail task
@@ -268,3 +283,4 @@ Catat perubahan status penting di sini (tanggal — ID — aksi):
 
 - 2026-06-30 — Backlog dibuat (T-01…T-17).
 - 2026-06-30 — Review backoffice: T-18…T-32 ditambah (2 P0 verified, 5 P1, dst). 1 false-positive (pack line-total) ditolak setelah verifikasi.
+- 2026-06-30 — Penguatan struktural keuangan & scan area: T-33…T-40 (lihat [doc 11](11-fokus-keuangan-scan-area.md)).
