@@ -176,10 +176,19 @@ Setelmen"): input sisa fisik → hitung terjual otomatis → adminFee/diskon →
 terjual, `canSubmit`, mapping item, status bayar — verified benar. **Sisa: tes di device**
 (alur + sinkron ke web + cetak). Printer termal Bluetooth = iterasi lain (baru ada expo-print PDF).
 
-### KEU-5 🟡 Timezone bucket bulan (BUG-2) & cap `.limit(200)`
-Backoffice bucket transaksi per tanggal **UTC**, mobile per bulan **WIB** — transaksi 00:00–07:00
-WIB tgl 1 bisa beda bulan antar app. Dan backoffice `getFinanceTransactions` dibatasi 200 terbaru,
-mobile baca semua. Kecil di skala sekarang; catat.
+### KEU-5 🟢 Timezone bucket bulan (BUG-2) & cap `.limit(200)`
+Dulu: backoffice bucket per tanggal **UTC**, mobile per bulan **jam lokal device** — setelmen
+00:00–07:00 WIB bisa masuk bulan berbeda antar app; dan `getFinanceTransactions` dibatasi 200 terbaru
+(mobile baca semua). **Perbaikan (hardcode WIB +7, tanpa library):**
+- Backoffice `finance.ts`: `toDateInput` kini turunkan tanggal **WIB** (helper `toWibDateParts`,
+  `WIB_OFFSET_MS`), jadi `.date` + `getMonthlyFinance` mengelompokkan per bulan WIB. `.limit(200)`
+  dihapus dari query `financeTransactions` (orderBy dipertahankan) → bulan lama tak terpotong.
+- Mobile `dashboard.ts` `getMonthlyFinanceTrend`: rentang tahun WIB-eksplisit
+  (`Date.UTC(...) - WIB_OFFSET_MS`) + ketiga `monthIndex` (transactionAt/movementAt/createdAt) pakai
+  `getWibMonth` (bukan `getMonth()` lokal).
+Hasil: kedua app menurunkan bulan WIB dari `transactionAt` yang sama → **konsisten**. Diverifikasi
+diff-demi-diff; `tsc --noEmit` exit 0 kedua repo. Nilai (revenue/expense/sales/modal), cash-basis,
+dedup tak diubah. Nol perubahan Firebase.
 
 ## Lifecycle Pelanggan (audit 2026-07-02)
 
@@ -200,8 +209,14 @@ terarsip → barang nyangkut tak bisa ditarik. **Perbaikan:** `deleteCustomer` m
 sengaja dipertahankan (buku besar/audit + dibaca Keuangan). Karena LC-1, pelanggan yang bisa
 diarsip pasti sisa 0 → stok produk sudah benar, tak perlu rekonsiliasi.
 
-### LC-3 🟡 `restoreCustomer` selalu balik ke "Aktif" (belum)
-Status sebelum arsip (mis. Tindak Lanjut) hilang saat dipulihkan. Kosmetik; belum diubah.
+### LC-3 🟢 `restoreCustomer` selalu balik ke "Aktif" → diperbaiki
+Status asli (mis. `follow_up`) sebelumnya hilang: `deleteCustomer` menimpa `status:"inactive"`
+lalu `restoreCustomer` menimpa `status:"active"`. **Perbaikan** (backoffice `customers.ts`, mobile
+read-only jadi tak tersentuh): field baru opsional `statusBeforeArchive` di `CustomerDocument`;
+`deleteCustomer` menyimpan `currentData.status` ke situ saat mengarsip (tetap set `"inactive"` untuk
+tampilan arsip); `restoreCustomer` mengembalikan `statusBeforeArchive ?? "active"` lalu menghapus
+field temp (`FieldValue.delete()`). Fallback `"active"` menjaga kompat pelanggan lama tanpa field.
+`tsc --noEmit` exit 0. Nol perubahan Firebase (tak butuh index/rule; Admin SDK).
 
 ## Inventory (audit 2026-07-02)
 
@@ -212,10 +227,16 @@ mengubah `warehouseStock`: `createConsignmentNote` (BO+MOB), `voidConsignmentNot
 `status` produk overloaded (level stok **atau** "inactive" tanpa field terpisah) → tidak dipakai
 hitung-saat-baca; ditambal per-jalur. Lihat [12 §2 Product hub](12-peta-sinkronisasi.md#product-hub).
 
-### INV-STK-2 🟡 Threshold status produk tersalin di 4 tempat (utang teknis)
-`getProductInventoryStatus` (customers.ts), `getInitialStatus`/`inventoryStatus` (inventory.ts + seed),
-`getWarehouseStatus` (consignment-notes.ts), mobile `derived-fields.ts`. Harus dijaga sinkron manual.
-Belum disatukan (skala kecil, low priority).
+### INV-STK-2 🟢 Threshold status produk tersalin di 4 tempat → disatukan
+Dulu logika `warehouseStock <=20 critical / <=50 low / >=400 overstock / else healthy` diketik ulang
+di 4 tempat backoffice (`getProductInventoryStatus` di customers.ts & invoices.ts, `getWarehouseStatus`
+di consignment-notes.ts, `getInitialStatus` di inventory.ts). **Perbaikan:** sumber tunggal
+`src/lib/inventory-status.ts` (fungsi `getProductInventoryStatus` + konstanta `WAREHOUSE_CRITICAL_MAX`
+/`WAREHOUSE_LOW_MAX`/`WAREHOUSE_OVERSTOCK_MIN`); 4 definisi lokal dihapus, diganti impor (beralias agar
+call site tak berubah). Diverifikasi grep: hanya 1 definisi tersisa, nol literal ambang nyasar; perilaku
+byte-identik; `tsc` exit 0. Mobile `derived-fields.ts` tetap punya salinan identik (repo terpisah, sudah
+sumber tunggal di repo-nya sendiri — berbagi lintas-repo butuh package bersama = over-engineering di skala ini).
+Nol perubahan Firebase.
 
 ### INV-STK-3 🟢 Error `tsc` lama di mobile `mock-data.ts` (diperbaiki)
 `dashboardTrend` kehilangan properti `modal` yang diwajibkan tipe `DashboardTrend`. Ditambahkan
