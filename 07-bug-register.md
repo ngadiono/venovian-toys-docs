@@ -33,15 +33,12 @@ membangun ulang dengan mock. **Perbaikan:** update AGENTS.md agar mencerminkan f
 
 ## Integrasi
 
-### INT-1 🟡 Dua jalur update kunjungan prospek {#int-1}
-Update kunjungan prospek bisa lewat **dua** jalur:
-1. `PATCH /api/mobile/prospects/[id]/visit` (backoffice, Admin SDK) — mengisi `updatedBy`,
-   `visitedAt`, cek token revoked. Mobile punya `EXPO_PUBLIC_API_URL` → indikasi jalur ini dipakai.
-2. `src/services/firebase/prospects.ts` `updateDoc(...)` langsung via client SDK.
-**Risiko:** field seperti `updatedBy`/`visitedAt` hanya terisi di jalur (1); bila mobile
-kadang pakai (2), data jadi tidak konsisten. **[VERIFIKASI]** lacak pemanggil
-`updateDoc` di `prospects.tsx`/`prospects.ts` vs pemanggil `EXPO_PUBLIC_API_URL`. Pilih
-satu jalur. Detail: [06 — Kontrak Integrasi](06-kontrak-integrasi.md#int-1).
+### INT-1 🟢 Dua jalur update kunjungan prospek — ditutup (bukan bug) {#int-1}
+**Audit 2026-07-02:** kedua jalur menulis field **identik** (`visitStatus`, `visitNotes`,
+`visitedAt`, `visitUpdatedAt`, `updatedAt`, `updatedBy`), dan mobile **hanya** memakai jalur
+client SDK langsung (`updateProspectVisit`) — 0 referensi ke `EXPO_PUBLIC_API_URL`. Jadi tak ada
+inkonsistensi data. Endpoint `PATCH /api/mobile/prospects/[id]/visit` yang jadi **dead code sudah
+dihapus** (SA-1). Keamanan `scanProspects` kini murni via Security Rules — lihat [SEC-1](#keamanan).
 
 ### INT-2 🟡 Logika transaksi stok titipan terduplikasi {#int-2}
 `runTransaction` untuk titipan ada di backoffice **dan** di mobile
@@ -208,6 +205,21 @@ Belum disatukan (skala kecil, low priority).
 `dashboardTrend` kehilangan properti `modal` yang diwajibkan tipe `DashboardTrend`. Ditambahkan
 `modal` pada 6 entri mock. `npx tsc --noEmit` mobile kini bersih total (exit 0) — verifikasi ke
 depan bebas noise.
+
+## Scan-Area / Prospek (audit 2026-07-02)
+
+### SA-1 🟢 Endpoint kunjungan prospek = dead code (dihapus)
+`PATCH /api/mobile/prospects/[id]/visit` tak dipanggil siapa pun (mobile update langsung via
+client SDK, field identik). Dihapus. Docs 01/03/06 disinkronkan. Detail: [INT-1](#int-1).
+
+### SA-2 🔵 Backoffice `updateSavedProspectVisitInDb` tak isi `updatedBy` (opsional)
+Update kunjungan dari web tidak mencatat pelaku (`updatedBy`); mobile mencatatnya. Perlu
+menambah `actorUid` ke signature + server action. Low priority.
+
+### SA-3 🟢 Konversi prospek→pelanggan — verified sehat
+`convertSavedProspectToCustomerInDb`: cek duplikat telepon, guard (sudah dikonversi / proposal
+harus sukses), bentuk dokumen pelanggan konsisten dengan `createCustomer`. Catatan minor: cek
+duplikat telepon di luar transaksi (race kecil, diabaikan di skala 2 user).
 
 ## Rencana audit
 

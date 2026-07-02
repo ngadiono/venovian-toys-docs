@@ -39,7 +39,6 @@ Route memakai Route Group `(auth)` dan `(dashboard)`. URL **flat & feature-based
 API routes
 ├── /api/auth/session  (login → set session cookie)
 ├── /api/auth/logout
-├── /api/mobile/prospects/[id]/visit  ← dipakai mobile (PATCH, lihat doc 06)
 ├── /api/scan-prospects               ← scan prospek (Overpass/Geoapify)
 └── /api/geocode/subdistrict          ← reverse geocode kelurahan
 ```

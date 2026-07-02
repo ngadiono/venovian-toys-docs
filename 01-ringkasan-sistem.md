@@ -38,8 +38,8 @@ Cari prospek warung  →  Survei & deal  →  Kirim stok titipan  →  Pantau pe
 ```
 
 **Poin kunci:** kedua app menulis ke **Firestore yang sama**. Tidak ada API backend
-khusus yang memediasi keduanya, kecuali satu endpoint (`PATCH /api/mobile/prospects/[id]/visit`).
-Mobile mengakses Firestore **langsung** dari device. Konsekuensi penting:
+khusus yang memediasi keduanya — mobile mengakses Firestore **langsung** dari device untuk
+semua operasi (termasuk update kunjungan prospek). Konsekuensi penting:
 **Firestore Security Rules adalah satu-satunya batas keamanan untuk mobile** — lihat
 [06 — Kontrak Integrasi](06-kontrak-integrasi.md).
 

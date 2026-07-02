@@ -13,19 +13,24 @@ yang sama**:
 Backoffice  ──tulis/baca──►  ┌───────────┐  ◄──tulis/baca──  Mobile
 (Admin SDK)                  │ Firestore │                   (Client SDK)
                              └───────────┘
-                                   ▲
-                                   │ satu pengecualian:
-                          PATCH /api/mobile/prospects/[id]/visit
-                          (mobile → backoffice → Firestore via Admin)
 ```
 
 Konsekuensi: **kontrak antar app = bentuk dokumen Firestore + Security Rules**. Tidak ada
 versi API, tidak ada tipe bersama. Jika satu app mengubah bentuk dokumen, app lain bisa
 rusak diam-diam.
 
-## Satu-satunya endpoint HTTP: update kunjungan prospek
+## Update kunjungan prospek (client SDK langsung)
 
-`PATCH /api/mobile/prospects/[id]/visit` (backoffice, App Router route handler).
+> **DIHAPUS 2026-07-02:** endpoint `PATCH /api/mobile/prospects/[id]/visit` sudah dihapus dari
+> kode (dulu **dead code** — mobile tak pernah memanggilnya). Kini update kunjungan prospek
+> mengikuti pola app lain: **mobile menulis langsung ke `scanProspects/{id}` via client SDK**
+> (`updateProspectVisit`, `src/services/firebase/prospects.ts`) — mengisi `visitStatus`,
+> `visitNotes`, `visitedAt`, `visitUpdatedAt`, `updatedAt`, `updatedBy`. Backoffice punya jalur
+> Admin SDK sendiri (`updateSavedProspectVisitInDb`) yang juga menulis `proposalStatus`.
+> Karena `updatedBy` dikirim dari client, keamanan `scanProspects` **murni via Security Rules**
+> (lihat [07 SEC-1](07-bug-register.md#keamanan)). Deskripsi di bawah = **arsip historis**.
+
+**(Arsip) Endpoint lama:** `PATCH /api/mobile/prospects/[id]/visit` (backoffice, App Router route handler).
 
 **Auth:** header `Authorization: Bearer <Firebase ID token>`. Backoffice memverifikasi
 token via `adminAuth.verifyIdToken(idToken, true)` (cek revoked). Tanpa Bearer → 401.
