@@ -150,18 +150,45 @@ uang** → melahirkan revenue pending yatim. **Perbaikan:** `createInvoiceSettle
 `invoices.ts` — port setia `createInvoice` backoffice (bentuk dokumen identik, `searchKeywords`
 array agar ketemu di search web, guard minimal 1 terjual). Diverifikasi field-demi-field.
 
-### KEU-3 🟡 "catat jual" mobile (`recordCustomerSale`) belum dipensiun (Bagian 3)
-Setelah setelmen lewat invoice, `recordCustomerSale` redundant & berbahaya (revenue pending
-yatim). Rencana: matikan dari UI mobile. Belum dikerjakan.
+### KEU-3 🟢 "catat jual" mobile (`recordCustomerSale`) dipensiun
+Sudah dihapus dari `CustomerStockDetailModal` (tombol/ view 'sale') dan fungsi service
+`recordCustomerSale` dihapus. `ModalView` jadi `'list' | 'withdraw'`; alur "Tarik Sisa"
+(retur murni ke gudang) tetap. Verified nol referensi tersisa. Kini penjualan **hanya** lewat
+setelmen invoice → tidak ada lagi revenue pending yatim.
 
-### KEU-4 🔵 B2-UI belum ada
-Layar setelmen mobile (pilih pelanggan → input sisa fisik → hitung terjual → uang → simpan →
-cetak) belum dibuat. Service sudah siap. Perlu tes di device (printer termal).
+### KEU-4 🟢 (kode) / 🔵 (tes device) B2-UI layar setelmen mobile
+`InvoiceSettlementModal.tsx` selesai + terwiring di `customers.tsx` (aksi "Buat Invoice /
+Setelmen"): input sisa fisik → hitung terjual otomatis → adminFee/diskon → uang + metode →
+`createInvoiceSettlement` → layar sukses + cetak struk PDF (expo-print/expo-sharing). Perhitungan
+terjual, `canSubmit`, mapping item, status bayar — verified benar. **Sisa: tes di device**
+(alur + sinkron ke web + cetak). Printer termal Bluetooth = iterasi lain (baru ada expo-print PDF).
 
 ### KEU-5 🟡 Timezone bucket bulan (BUG-2) & cap `.limit(200)`
 Backoffice bucket transaksi per tanggal **UTC**, mobile per bulan **WIB** — transaksi 00:00–07:00
 WIB tgl 1 bisa beda bulan antar app. Dan backoffice `getFinanceTransactions` dibatasi 200 terbaru,
 mobile baca semua. Kecil di skala sekarang; catat.
+
+## Lifecycle Pelanggan (audit 2026-07-02)
+
+Lifecycle = Aktif → Arsip (soft delete, retensi 30 hari) → Pulihkan / Hapus Permanen. Murni
+backoffice (mobile hanya baca daftar pelanggan). Aturan inti yang ditegakkan: **pelanggan tidak
+boleh dihilangkan selama masih memegang titipan** (sumber kebenaran = `customerStocks`, bukan
+agregat `consignedStock`).
+
+### LC-1 🟢 Arsip pelanggan bertitipan → deadlock (diperbaiki)
+`deleteCustomer` dulu tak cek sisa titipan; padahal `deleteCustomerStock` menolak pelanggan
+terarsip → barang nyangkut tak bisa ditarik. **Perbaikan:** `deleteCustomer` menjumlahkan
+`quantityRemaining` dari `customerStocks`; jika > 0 tolak arsip dengan pesan minta tarik/setel dulu.
+
+### LC-2 🟢 Hapus permanen tinggalkan orphan (diperbaiki)
+`permanentlyDeleteCustomer` dulu hanya hapus dokumen pelanggan → `customerStocks` yatim &
+`products.consignedStock` meleset. **Perbaikan:** guard tolak jika masih ada sisa > 0, lalu
+`batch()` hapus semua `customerStocks` pelanggan + dokumen pelanggan sekaligus. `stockMovements`
+sengaja dipertahankan (buku besar/audit + dibaca Keuangan). Karena LC-1, pelanggan yang bisa
+diarsip pasti sisa 0 → stok produk sudah benar, tak perlu rekonsiliasi.
+
+### LC-3 🟡 `restoreCustomer` selalu balik ke "Aktif" (belum)
+Status sebelum arsip (mis. Tindak Lanjut) hilang saat dipulihkan. Kosmetik; belum diubah.
 
 ## Rencana audit
 

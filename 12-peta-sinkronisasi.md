@@ -59,8 +59,9 @@ Legenda: ✅ ditulis · ➖ tidak relevan · ❌ **seharusnya ditulis tapi TIDAK
 | `voidConsignmentNote` | BO | ✅ | ✅ | ➖ | ❌ | ➖ |
 | `createInvoiceSettlement` (setelmen) | **MOB** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ❌ | ➖ |
-| `recordCustomerSale` (jual) | **MOB** ⚠️ mau dipensiun | ✅ | ✅ | ✅ | ❌ | ❌ |
 | `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ❌ | ➖ |
+
+> `recordCustomerSale` (catat-jual mobile) **sudah dihapus** — penjualan kini hanya lewat `createInvoiceSettlement`.
 
 ### Product hub
 | Jalur tulis | App | warehouseStock | consignedStock | soldStock | status |
@@ -73,7 +74,6 @@ Legenda: ✅ ditulis · ➖ tidak relevan · ❌ **seharusnya ditulis tapi TIDAK
 | `createConsignmentNote` (surat) | BO | ✅ | ✅ | ➖ | ❌ |
 | `createInvoiceSettlement` (setelmen) | **MOB** | ✅ | ✅ | ✅ | ✅ |
 | `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ❌ |
-| `recordCustomerSale` (jual) | **MOB** ⚠️ mau dipensiun | ➖ | ✅ | ✅ | ❌ |
 | `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ❌ |
 
 > **Baca peta di atas begini:** kolom `stockBucket`/`salesBucket` dan `status` penuh dengan ❌.
