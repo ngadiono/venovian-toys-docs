@@ -34,6 +34,7 @@ yang berbagi satu database Firebase yang sama.
 - [09 — Deployment](09-deployment.md) — Vercel, Firebase, EAS, environment
 - [10 — Task Tracker](10-task-tracker.md) — **backlog pengembangan yang dilacak** (T-01…)
 - [11 — Fokus: Keuangan & Scan Area](11-fokus-keuangan-scan-area.md) — penguatan dua area vital (tetap gratis)
+- [12 — Peta Sinkronisasi](12-peta-sinkronisasi.md) — **kontrak field denormalized** lintas app; checklist saat review seam
 
 ### Sumber kanonik di repo aplikasi
 | Topik | Lokasi |

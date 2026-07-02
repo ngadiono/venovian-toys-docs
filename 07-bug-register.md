@@ -50,6 +50,20 @@ satu jalur. Detail: [06 — Kontrak Integrasi](06-kontrak-integrasi.md#int-1).
 berbeda. **[VERIFIKASI]** bandingkan field demi field kedua implementasi. Satukan logika
 atau buat checklist sinkronisasi.
 
+**Audit 2026-07-02 (field-demi-field selesai):** matriks lengkap ada di
+[12 — Peta Sinkronisasi](12-peta-sinkronisasi.md#2-matriks-jalur-tulis--field-yang-dipelihara).
+Hasil: **math inti titipan/jual/tarik SUDAH identik** backoffice ↔ mobile (kabar baik). Drift
+nyata yang ditemukan & statusnya:
+- 🟢 **Guard `deletedAt`** (mobile bisa transaksi ke pelanggan/produk terarsip) — **diperbaiki**
+  di mobile `consignment-notes.ts` + `customer-stocks.ts` (4 titik guard).
+- 🟢 **Bucket customer basi** (`consignedStockBucket`/`totalSalesBucket` dilupakan banyak jalur
+  di kedua app) — **diperbaiki di sisi baca**: backoffice `customers.ts` kini menghitung bucket
+  in-memory (`filterDocsByBucket`), jadi jalur tulis tak wajib lagi memeliharanya.
+- 🔴 **`products.status` basi** — jalur jual (BO+MOB), surat titipan (BO+MOB) tidak menghitung
+  ulang `getProductInventoryStatus`. Belum diperbaiki; ditangani di review area Inventory.
+- 🔴 **Tak ada guard stok gudang minus** saat `createConsignmentNote` (kedua app) — bisa
+  membuat `warehouseStock` negatif. Belum diperbaiki.
+
 ### INT-3 🟡 Tidak ada tipe bersama (risiko drift skema)
 Tipe `Customer`, `Product`, dll. didefinisikan ulang terpisah di tiap app. **Risiko:**
 perubahan skema di satu app tidak terdeteksi di app lain sampai runtime. **Perbaikan
