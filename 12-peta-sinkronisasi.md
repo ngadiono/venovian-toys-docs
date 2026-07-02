@@ -51,25 +51,29 @@ Legenda: ✅ ditulis · ➖ tidak relevan · ❌ **seharusnya ditulis tapi TIDAK
 | Jalur tulis | App | consignedStock | consignedValue | totalSales | stockBucket | salesBucket |
 |---|---|:--:|:--:|:--:|:--:|:--:|
 | `createInvoice` (rujukan) | BO | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `voidInvoice` (batal) | BO | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `recordCustomerStockSale` (jual) | BO | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `deleteCustomerStock` (tarik) | BO | ✅ | ✅ | ➖ | ✅ | ➖ |
 | `addCustomerConsignment` (quick) | BO | ✅ | ✅ | ➖ | ✅ | ➖ |
 | `createConsignmentNote` (surat) | BO | ✅ | ✅ | ➖ | ❌ | ➖ |
 | `voidConsignmentNote` | BO | ✅ | ✅ | ➖ | ❌ | ➖ |
+| `createInvoiceSettlement` (setelmen) | **MOB** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ❌ | ➖ |
-| `recordCustomerSale` (jual) | **MOB** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `recordCustomerSale` (jual) | **MOB** ⚠️ mau dipensiun | ✅ | ✅ | ✅ | ❌ | ❌ |
 | `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ❌ | ➖ |
 
 ### Product hub
 | Jalur tulis | App | warehouseStock | consignedStock | soldStock | status |
 |---|---|:--:|:--:|:--:|:--:|
 | `createInvoice` (rujukan) | BO | ✅ | ✅ | ✅ | ✅ |
+| `voidInvoice` (batal) | BO | ✅ | ✅ | ✅ | ✅ |
 | `addCustomerConsignment` | BO | ✅ | ✅ | ➖ | ✅ |
 | `deleteCustomerStock` (tarik) | BO | ✅ | ✅ | ➖ | ✅ |
 | `recordCustomerStockSale` (jual) | BO | ➖ | ✅ | ✅ | ❌ |
 | `createConsignmentNote` (surat) | BO | ✅ | ✅ | ➖ | ❌ |
+| `createInvoiceSettlement` (setelmen) | **MOB** | ✅ | ✅ | ✅ | ✅ |
 | `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ❌ |
-| `recordCustomerSale` (jual) | **MOB** | ➖ | ✅ | ✅ | ❌ |
+| `recordCustomerSale` (jual) | **MOB** ⚠️ mau dipensiun | ➖ | ✅ | ✅ | ❌ |
 | `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ❌ |
 
 > **Baca peta di atas begini:** kolom `stockBucket`/`salesBucket` dan `status` penuh dengan ❌.
@@ -86,7 +90,17 @@ Legenda: ✅ ditulis · ➖ tidak relevan · ❌ **seharusnya ditulis tapi TIDAK
 | `consignedStockBucket` / `totalSalesBucket` | `customers.ts` `buildCustomersQuery` (filter daftar) | Satu-satunya konsumen → aman dipindah ke in-memory |
 | `consignedValue` | daftar pelanggan **meng-hydrate ulang** dari `customerStocks`; kartu statistik & mobile pakai nilai tersimpan | 3 jalur → bisa beda angka |
 | `products.status` | filter/badge di Inventory | |
-| `stockMovements` | **Keuangan** (turunkan biaya/`warehouse_in`) + riwayat stok | seam dobel-hitung — lihat [07 BUG-1](07-bug-register.md) |
+| `stockMovements` | **Keuangan** (turunkan biaya/`warehouse_in`) + riwayat stok | seam invoice↔finance **verified bersih**: movement `sold` ber-`invoiceId` diabaikan finance, revenue lewat txn `collection` |
+
+> **Keputusan akuntansi (2026-07-02): CASH-BASIS.** Pendapatan diakui saat uang diterima
+> (invoice/setelmen), bukan saat barang terjual. Ringkasan laba backoffice (`getProfitSummary`,
+> `getMonthlyFinance`) kini **hanya menghitung transaksi status `paid`** — selaras dengan mobile
+> `dashboard.ts`. Konsekuensi: penjualan "belum ditagih" tetap tampil sebagai info, tidak masuk laba.
+>
+> **Setelmen kini bisa di mobile.** `createInvoiceSettlement` (MOB) = port setia `createInvoice`
+> (BO): catat terjual/retur + terima uang + tulis `invoices`/`items`/`stockMovements`/
+> `financeTransactions`/`invoicePayments` dengan bentuk **identik**. `recordCustomerSale` (catat-jual
+> mobile) akan **dipensiun** karena hanya menandai terjual tanpa menangkap uang (bikin revenue pending yatim).
 
 ---
 

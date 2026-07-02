@@ -106,6 +106,63 @@ meleset sehari.
 
 ---
 
+## Invoice (audit 2026-07-02)
+
+### INV-1 🟢 Invoice tidak bisa dibatalkan → ditambah fitur void
+Sebelumnya `createInvoice` memotong stok titipan, agregat pelanggan/produk, ledger, dan
+finance tanpa cara membalik di app. **Perbaikan:** `voidInvoice(invoiceId, actorUid, reason)`
+di backoffice `invoices.ts` membalik semua efek (customerStocks, products+status, customer+bucket),
+menulis movement `invoice_void`, soft-delete `financeTransactions`/`invoicePayments` terkait,
+set status `void`. Ada `voidInvoiceAction` + tombol "Batalkan Invoice" di `InvoiceTable`.
+Diverifikasi field-demi-field = kebalikan persis `createInvoice`. Read-before-write aman.
+
+### INV-2 🟢 Txn finance asal invoice bisa diutak-atik manual → dikunci
+`updateFinanceTransaction`/`deleteFinanceTransaction` kini menolak `source === "invoice"`
+(sebelumnya hanya `stock_movement`) dan `mapFinanceTransactionDocument` menandainya `readOnly`.
+Satu-satunya jalur sah membalik efek finansial invoice = tombol Batalkan Invoice.
+
+### INV-3 🟡 Seam invoice↔finance: verified BERSIH (bukan dobel-hitung)
+Terkait [BUG-1](#bug-1-🟡-potensi-dobel-hitung-keuangan-dari-pergerakan-stok): movement `sold`
+ber-`invoiceId` sengaja diabaikan finance (`mapSoldStockMovement` → `if (data.invoiceId) return null`);
+revenue masuk lewat txn `collection`. **Tidak ada dobel-hitung di jalur invoice.** Sisa perhatian:
+penjualan via "catat jual" (non-invoice) jadi revenue "pending" yang tak pernah direkonsiliasi —
+ditangani di review area **Keuangan**.
+
+### INV-4 🟢 Counter invoice aman dari race
+`invoiceCounters` di-increment **di dalam** `runTransaction` → Firestore retry saat contention.
+Kekhawatiran race pada penomoran invoice tidak berlaku.
+
+### INV-5 🔵 Polish minor (belum): label movement `invoice_void`/`consign_void`
+Tipe movement pembatalan muncul di riwayat stok tanpa label Indonesia rapi. Kosmetik; poles saat area UI/riwayat.
+
+## Keuangan (audit 2026-07-02)
+
+### KEU-1 🟢 Web & mobile beda cara hitung laba → disamakan cash-basis
+Backoffice memasukkan penjualan belum ditagih (pending) sebagai laba; mobile hanya `paid`.
+**Keputusan: cash-basis** (akui saat uang diterima). **Perbaikan:** `getProfitSummary` &
+`getMonthlyFinance` (backoffice `finance.ts`) kini melewati transaksi status !== "paid".
+Daftar transaksi tak diubah — baris pending tetap tampil, hanya tidak masuk laba. Selaras
+dengan mobile `dashboard.ts`.
+
+### KEU-2 🟢 Mobile kini bisa setelmen invoice saat visit (uang tertangkap)
+Sebelumnya mobile hanya bisa "catat jual" (`recordCustomerSale`) yang menandai terjual **tanpa
+uang** → melahirkan revenue pending yatim. **Perbaikan:** `createInvoiceSettlement` di mobile
+`invoices.ts` — port setia `createInvoice` backoffice (bentuk dokumen identik, `searchKeywords`
+array agar ketemu di search web, guard minimal 1 terjual). Diverifikasi field-demi-field.
+
+### KEU-3 🟡 "catat jual" mobile (`recordCustomerSale`) belum dipensiun (Bagian 3)
+Setelah setelmen lewat invoice, `recordCustomerSale` redundant & berbahaya (revenue pending
+yatim). Rencana: matikan dari UI mobile. Belum dikerjakan.
+
+### KEU-4 🔵 B2-UI belum ada
+Layar setelmen mobile (pilih pelanggan → input sisa fisik → hitung terjual → uang → simpan →
+cetak) belum dibuat. Service sudah siap. Perlu tes di device (printer termal).
+
+### KEU-5 🟡 Timezone bucket bulan (BUG-2) & cap `.limit(200)`
+Backoffice bucket transaksi per tanggal **UTC**, mobile per bulan **WIB** — transaksi 00:00–07:00
+WIB tgl 1 bisa beda bulan antar app. Dan backoffice `getFinanceTransactions` dibatasi 200 terbaru,
+mobile baca semua. Kecil di skala sekarang; catat.
+
 ## Rencana audit
 
 Belum dilakukan; urutan yang disarankan saat masuk fase "review bug":

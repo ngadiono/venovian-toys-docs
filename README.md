@@ -35,6 +35,7 @@ yang berbagi satu database Firebase yang sama.
 - [10 — Task Tracker](10-task-tracker.md) — **backlog pengembangan yang dilacak** (T-01…)
 - [11 — Fokus: Keuangan & Scan Area](11-fokus-keuangan-scan-area.md) — penguatan dua area vital (tetap gratis)
 - [12 — Peta Sinkronisasi](12-peta-sinkronisasi.md) — **kontrak field denormalized** lintas app; checklist saat review seam
+- [13 — Perubahan Firebase Manual](13-firebase-perubahan-manual.md) — checklist index/rules/seed yang dikerjakan manual pemilik (dev → prod)
 
 ### Sumber kanonik di repo aplikasi
 | Topik | Lokasi |
