@@ -70,19 +70,29 @@ perubahan skema di satu app tidak terdeteksi di app lain sampai runtime. **Perba
 
 ## Keamanan {#keamanan}
 
-### SEC-1 🟡 Security Rules adalah satu-satunya penjaga akses mobile
-Mobile mengakses Firestore langsung dari device (tak tepercaya). Bila Security Rules
-longgar, siapa pun dengan kredensial bisa membaca/menulis koleksi apa pun. **[VERIFIKASI]**
-audit `firestore.rules` aktual: pastikan per-koleksi membatasi read/write sesuai role
-(`userProfiles.role`) dan kepemilikan. **Catatan:** file rules belum ditemukan di repo
-mana pun saat dokumentasi ini disusun — **konfirmasi rules disimpan di mana** (Firebase
-Console saja, atau ada di repo). Rules yang hanya di Console = tidak ter-version-control =
-risiko sendiri.
+### SEC-1 🟢 Security Rules adalah satu-satunya penjaga akses mobile
+Mobile mengakses Firestore langsung dari device (tak tepercaya). **Rules aktual didapat dari
+pemilik (2026-07-02)** — ternyata **sudah bagus**: per-koleksi, gate `isActiveUser()` (auth +
+`userProfiles.status=='active'`), default-deny `if false`. **Bukan** test-mode kebuka.
+Disimpan di repo sebagai source of truth: [`venovian-toys/firestore.rules`](../venovian-toys/firestore.rules).
+Tidak butuh penulisan ulang per-role — altitude yang ada sudah pas untuk 2 user.
 
-### SEC-2 🟡 Secret di environment
-Backoffice `.env.local` (4.8 KB) memuat `FIREBASE_PRIVATE_KEY` (Admin SDK). **[VERIFIKASI]**
-pastikan `.env.local` ada di `.gitignore` dan tidak pernah ter-commit; pastikan di Vercel
-disimpan sebagai Encrypted Environment Variable, bukan di kode.
+### SEC-3 🔴 Rules read-only memblokir fitur setelmen mobil {#sec-3}
+Rules berjalan dibuat **sebelum** `createInvoiceSettlement` (KEU-2). `invoices`,
+`invoicePayments`, `financeTransactions` **read-only** dari client, tapi setelmen mobil
+menulisnya → transaksi Firestore all-or-nothing → **setelmen selalu gagal `permission-denied`**.
+Kemungkinan sebab tes setelmen di HP belum tembus. **Perbaikan** (di `firestore.rules`, tandai
+`DELTA`): izin **create** (bukan update/delete) untuk 3 koleksi itu + `invoiceCounters` +
+subcollection `invoices/{id}/items`. Terap manual → [13 — FB-1](13-firebase-perubahan-manual.md).
+
+### SEC-2 🟢 Secret di environment
+Backoffice `.env.local` memuat `FIREBASE_PRIVATE_KEY` (Admin SDK). **Terverifikasi bersih
+(2026-07-02):** `.gitignore` mengabaikan `.env*` (kecuali `.env.example`); `git log` atas
+`.env.local` **kosong** (tak pernah ter-commit); pencarian history atas `BEGIN PRIVATE KEY`
+**nol hit** (nilai kunci asli tak pernah masuk git). Nama variabel `FIREBASE_PRIVATE_KEY`
+hanya muncul sebagai referensi di `.env.example`/docs/scripts/`admin.ts`, bukan nilainya.
+Sisa (cek pemilik, tak bisa dari repo): pastikan di **Vercel** tersimpan sebagai Encrypted
+Environment Variable, bukan hardcode.
 
 ---
 
@@ -129,8 +139,14 @@ ditangani di review area **Keuangan**.
 `invoiceCounters` di-increment **di dalam** `runTransaction` → Firestore retry saat contention.
 Kekhawatiran race pada penomoran invoice tidak berlaku.
 
-### INV-5 🔵 Polish minor (belum): label movement `invoice_void`/`consign_void`
-Tipe movement pembatalan muncul di riwayat stok tanpa label Indonesia rapi. Kosmetik; poles saat area UI/riwayat.
+### INV-5 🟢 Label movement `invoice_void`/`consign_void` di riwayat (ternyata mislabel, bukan kosmetik)
+Kedua tipe pembatalan bawa `customerId`+`productId` → muncul di riwayat stok pelanggan. **Bug:**
+mobile `getCustomerMovements` (customer-stocks.ts) meng-*coerce* tipe tak dikenal → `'sold'`,
+jadi pembatalan **tampil "Terjual" (hijau)** — salah arti. Backoffice `CustomerTable` menampilkan
+string mentah `invoice_void`. **Perbaikan (4 file):** perluas union `StockMovement.type`
+(mobile customer-stocks.ts + backoffice customer-types.ts), hentikan coercion agar 2 tipe void
+dipertahankan, tambah label: **"Invoice dibatalkan"** & **"Titipan dibatalkan"** (amber) di
+`CustomerStockDetailModal` (mobile) & `CustomerTable` (backoffice). `tsc --noEmit` kedua repo exit 0.
 
 ## Keuangan (audit 2026-07-02)
 
@@ -212,9 +228,14 @@ depan bebas noise.
 `PATCH /api/mobile/prospects/[id]/visit` tak dipanggil siapa pun (mobile update langsung via
 client SDK, field identik). Dihapus. Docs 01/03/06 disinkronkan. Detail: [INT-1](#int-1).
 
-### SA-2 🔵 Backoffice `updateSavedProspectVisitInDb` tak isi `updatedBy` (opsional)
-Update kunjungan dari web tidak mencatat pelaku (`updatedBy`); mobile mencatatnya. Perlu
-menambah `actorUid` ke signature + server action. Low priority.
+### SA-2 🟢 Backoffice `updateSavedProspectVisitInDb` — audit + guard auth
+Update kunjungan dari web tak mencatat pelaku (`updatedBy`/`updatedAt`), mobile mencatatnya.
+**Temuan tambahan saat perbaikan:** server action `updateSavedProspectVisitAction` **tak punya
+guard sesi/role** (beda dari saudaranya `convertSavedProspectToCustomerAction` yang pakai
+`requireSession()` + `assertCanWrite()`). **Perbaikan:** service terima `actorUid` → tulis
+`updatedAt` + `updatedBy`; action tambah `requireSession()` + `assertCanWrite(user.role)` lalu
+teruskan `user.uid`. Kini paritas dgn mobile `updateProspectVisit` (yang juga patuh Security
+Rules `scanProspects` — hanya menulis field yang di-allow). `tsc --noEmit` exit 0.
 
 ### SA-3 🟢 Konversi prospek→pelanggan — verified sehat
 `convertSavedProspectToCustomerInDb`: cek duplikat telepon, guard (sudah dikonversi / proposal

@@ -35,15 +35,33 @@
 
 ## Terbuka
 
-### FB-1 🔴 Firestore Security Rules belum ada di repo (SEC-1)
-Mobile akses Firestore **langsung** dari device; Security Rules adalah satu-satunya penjaga.
-File `firestore.rules` belum ditemukan di repo mana pun — kemungkinan hanya ada di Console
-(atau default test-mode). **Belum dibutuhkan untuk kerja invoice/titipan sekarang**, tapi
-**wajib** sebelum dianggap aman di prod.
-- Langkah (nanti, saat masuk area Keamanan): tulis `firestore.rules` per-koleksi (read/write
-  per role `userProfiles.role` + kepemilikan), simpan di repo backoffice, terapkan ke dev → prod.
+### FB-1 🔴 Selaraskan Firestore Security Rules dgn fitur setelmen mobile (SEC-1, SEC-3)
+Rules yang **sudah berjalan** ternyata bagus (per-koleksi, gate `status=='active'`,
+default-deny) — **bukan** test-mode kebuka. Jadi bukan "tulis dari nol", tapi **tambah delta**.
+
+**Masalah (SEC-3):** rules berjalan dibuat **sebelum** fitur setelmen mobil
+(`createInvoiceSettlement`, KEU-2). Koleksi `invoices` / `invoicePayments` /
+`financeTransactions` di rules itu **read-only** dari client, sedangkan setelmen mobil
+**menulis** ke sana. Karena transaksi Firestore all-or-nothing → **setelmen mobil selalu
+gagal `permission-denied`**. (Inilah kemungkinan sebab tes setelmen di HP belum tembus.)
+
+**Perbaikan:** file [`venovian-toys/firestore.rules`](../venovian-toys/firestore.rules) =
+rules lama **+ delta** (ditandai `DELTA` di komentar): izin **CREATE** (bukan update/delete —
+catatan uang tetap tak bisa diubah/dihapus dari HP) untuk `invoices`, `invoicePayments`,
+`financeTransactions`; plus koleksi `invoiceCounters` & subcollection `invoices/{id}/items`.
+Void/koreksi invoice tetap lewat backoffice (Admin SDK bypass rules). Tidak menyentuh
+koleksi/gate lain → **nol regresi**.
+
+**Langkah terap (dev dulu, uji, baru prod):**
+1. **Publish rules.** Firebase Console → project → Firestore Database → tab **Rules** →
+   tempel isi `firestore.rules` → **Publish**. (Reversibel instan, tidak menyentuh data.)
+2. **Uji di dev:** buka app mobil → **buat 1 setelmen** → harus **berhasil** + tersinkron ke
+   web. Fitur lama (lihat stok, restok/tarik, consignment note, kunjungan prospek) tetap jalan
+   karena path-nya tak berubah. Baru terapkan ke prod.
 - [ ] dev · [ ] prod
-- Rujukan: [07 — Bug Register SEC-1](07-bug-register.md#keamanan)
+- (Opsional, kapan saja) Pengetatan auth: matikan self-signup di Authentication → Settings,
+  agar hanya akun yang dibuat manual yang bisa login. Bukan bagian rules, tak mendesak.
+- Rujukan: [07 — Bug Register SEC-1/SEC-3](07-bug-register.md#keamanan)
 
 ---
 
