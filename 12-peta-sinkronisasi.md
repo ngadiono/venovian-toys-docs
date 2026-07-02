@@ -70,16 +70,20 @@ Legenda: ✅ ditulis · ➖ tidak relevan · ❌ **seharusnya ditulis tapi TIDAK
 | `voidInvoice` (batal) | BO | ✅ | ✅ | ✅ | ✅ |
 | `addCustomerConsignment` | BO | ✅ | ✅ | ➖ | ✅ |
 | `deleteCustomerStock` (tarik) | BO | ✅ | ✅ | ➖ | ✅ |
-| `recordCustomerStockSale` (jual) | BO | ➖ | ✅ | ✅ | ❌ |
-| `createConsignmentNote` (surat) | BO | ✅ | ✅ | ➖ | ❌ |
+| `recordCustomerStockSale` (jual) | BO | ➖ | ✅ | ✅ | ➖ (gudang tak berubah) |
+| `voidConsignmentNote` (batal surat) | BO | ✅ | ✅ | ➖ | ✅ |
+| `createConsignmentNote` (surat) | BO | ✅ | ✅ | ➖ | ✅ |
 | `createInvoiceSettlement` (setelmen) | **MOB** | ✅ | ✅ | ✅ | ✅ |
-| `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ❌ |
-| `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ❌ |
+| `createConsignmentNote` (restok) | **MOB** | ✅ | ✅ | ➖ | ✅ |
+| `withdrawCustomerStock` (tarik) | **MOB** | ✅ | ✅ | ➖ | ✅ |
 
-> **Baca peta di atas begini:** kolom `stockBucket`/`salesBucket` dan `status` penuh dengan ❌.
-> Artinya field-field ini **rapuh** — banyak jalur (di **kedua** app) lupa memperbaruinya.
-> Karena itu rekomendasi arsitektur: **hitung `bucket` & `status` saat baca (in-memory)**,
-> jangan andalkan field tersimpan untuk filter. Fix di sisi baca menutup semua ❌ sekaligus.
+> **Update 2026-07-02:** `products.status` kini diperbarui oleh **semua** jalur yang mengubah
+> `warehouseStock`, dengan menjaga nilai `"inactive"` (produk dimatikan manual). Berbeda dari
+> `bucket` pelanggan (yang diselesaikan dengan hitung-saat-baca), `status` produk tidak bisa
+> begitu karena field-nya juga menyimpan `"inactive"` — jadi ditambal per-jalur. Threshold
+> (≤20 critical, ≤50 low, ≥400 overstock, else healthy) tersalin di beberapa tempat (customers.ts
+> `getProductInventoryStatus`, inventory.ts `getInitialStatus`/`inventoryStatus`, consignment-notes.ts
+> `getWarehouseStatus`, mobile `derived-fields.ts`) — **utang teknis** yang harus dijaga sinkron.
 
 ---
 

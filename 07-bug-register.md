@@ -190,6 +190,25 @@ diarsip pasti sisa 0 → stok produk sudah benar, tak perlu rekonsiliasi.
 ### LC-3 🟡 `restoreCustomer` selalu balik ke "Aktif" (belum)
 Status sebelum arsip (mis. Tindak Lanjut) hilang saat dipulihkan. Kosmetik; belum diubah.
 
+## Inventory (audit 2026-07-02)
+
+### INV-STK-1 🟢 `products.status` basi setelah surat titipan / tarik (diperbaiki)
+Label stok gudang (critical/low/healthy/overstock) tidak dihitung ulang oleh 4 jalur yang
+mengubah `warehouseStock`: `createConsignmentNote` (BO+MOB), `voidConsignmentNote` (BO),
+`withdrawCustomerStock` (MOB). **Perbaikan:** semua kini set `status`, dengan menjaga `"inactive"`.
+`status` produk overloaded (level stok **atau** "inactive" tanpa field terpisah) → tidak dipakai
+hitung-saat-baca; ditambal per-jalur. Lihat [12 §2 Product hub](12-peta-sinkronisasi.md#product-hub).
+
+### INV-STK-2 🟡 Threshold status produk tersalin di 4 tempat (utang teknis)
+`getProductInventoryStatus` (customers.ts), `getInitialStatus`/`inventoryStatus` (inventory.ts + seed),
+`getWarehouseStatus` (consignment-notes.ts), mobile `derived-fields.ts`. Harus dijaga sinkron manual.
+Belum disatukan (skala kecil, low priority).
+
+### INV-STK-3 🟢 Error `tsc` lama di mobile `mock-data.ts` (diperbaiki)
+`dashboardTrend` kehilangan properti `modal` yang diwajibkan tipe `DashboardTrend`. Ditambahkan
+`modal` pada 6 entri mock. `npx tsc --noEmit` mobile kini bersih total (exit 0) — verifikasi ke
+depan bebas noise.
+
 ## Rencana audit
 
 Belum dilakukan; urutan yang disarankan saat masuk fase "review bug":
