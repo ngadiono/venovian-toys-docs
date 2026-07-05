@@ -19,7 +19,12 @@ via Task Brief dari Opus (T-51…T-61 di [10 — Task Tracker](10-task-tracker.m
 - ✅ Repo GitHub `venovian-toys` di-rename → **`venovian-toys-web`**; Vercel tetap
   ter-deploy dari repo ini (diverifikasi owner).
 - ✅ Remote lokal backoffice sudah menunjuk `venovian-toys-web`.
-- ✅ Repo baru **kosong**: `https://github.com/ngadiono/venovian-toys.git` (private).
+- ✅ Repo baru: `https://github.com/ngadiono/venovian-toys.git` (private; berisi 1 commit
+  awal README dari GitHub — cukup sebagai parent untuk `git subtree add`).
+- ✅ Folder lokal dirapikan (2026-07-05): backoffice lama di-rename →
+  `~/Development/Projects/venovian-toys/venovian-toys-web`; monorepo sudah di-clone ke
+  `~/Development/Projects/venovian-toys/venovian-toys` (di samping 3 repo lama);
+  `.code-workspace` diperbarui (4 folder, label freeze).
 
 ## Struktur target
 
@@ -60,9 +65,9 @@ venovian-toys/                        ← repo ngadiono/venovian-toys (monorepo)
 4. **Gerbang verifikasi berurutan** (lihat per-task): build lokal → Vercel cutover →
    EAS APK → baru archive repo lama. Selama gerbang belum lolos, jalan pulang =
    repo lama yang masih utuh.
-5. Kerja dilakukan di clone terpisah `~/Development/Projects/venovian-toys-mono`
-   (di LUAR folder payung, supaya tiga repo lama tak tersentuh). Swap folder terjadi
-   di T-59.
+5. Kerja dilakukan di clone monorepo `~/Development/Projects/venovian-toys/venovian-toys`
+   (sudah ada, di samping tiga repo lama di folder payung). Tiga folder repo lama
+   TIDAK disentuh; pengarsipannya terjadi di T-59.
 
 ## Rencana per task
 
@@ -71,13 +76,12 @@ venovian-toys/                        ← repo ngadiono/venovian-toys (monorepo)
 Garis besar teknis:
 
 ```bash
-cd ~/Development/Projects
-git clone https://github.com/ngadiono/venovian-toys.git venovian-toys-mono
-cd venovian-toys-mono
-# commit awal: README singkat + .gitignore root (agar subtree punya parent)
-git subtree add --prefix=apps/backoffice ~/Development/Projects/venovian-toys/venovian-toys main
-git subtree add --prefix=apps/mobile     ~/Development/Projects/venovian-toys/venovian-toys-mobile main
-git subtree add --prefix=docs            ~/Development/Projects/venovian-toys/venovian-toys-docs main
+# clone sudah ada di ~/Development/Projects/venovian-toys/venovian-toys (parent commit = README awal)
+cd ~/Development/Projects/venovian-toys/venovian-toys
+# lengkapi commit awal: .gitignore root (+ README diperbaiki belakangan)
+git subtree add --prefix=apps/backoffice ../venovian-toys-web    main
+git subtree add --prefix=apps/mobile     ../venovian-toys-mobile main
+git subtree add --prefix=docs            ../venovian-toys-docs   main
 ```
 
 Lalu: root `package.json` (`"workspaces": ["apps/*", "packages/*"]`, `private: true`);
@@ -159,10 +163,10 @@ lockfile) — sisanya identik; (c) `npm install` root sukses tanpa error resolus
 
 - Archive di GitHub (JANGAN delete): `venovian-toys-web`, `venovian-toys-mobile`,
   `venovian-toys-docs`. Boleh ditunda beberapa hari setelah T-55 stabil.
-- Lokal: folder payung `~/Development/Projects/venovian-toys/` diganti clone monorepo
-  (rename `venovian-toys-mono` → `venovian-toys`); tiga folder repo lama dipindah ke
-  arsip lokal dulu (mis. `~/Development/Projects/_arsip-venovian/`), dihapus nanti
-  kalau sudah yakin.
+- Lokal: monorepo sudah di tempatnya (`venovian-toys/venovian-toys`); tinggal pindahkan
+  tiga folder repo lama (`venovian-toys-web`, `-mobile`, `-docs`) ke arsip lokal
+  (mis. `~/Development/Projects/_arsip-venovian/`), dihapus nanti kalau sudah yakin;
+  update `.code-workspace`.
 - Update link lintas-repo di docs (kini path relatif dalam monorepo).
 - AC: sesi kerja baru dibuka di monorepo; `git pull/push` normal; docs tidak punya
   link mati.
