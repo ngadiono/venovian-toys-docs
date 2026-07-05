@@ -34,6 +34,26 @@ Sumber tunggal untuk melacak pekerjaan pengembangan Venovian Toys. File ini
 | T-16 | P2 | [ ] | Platform | Backup terjadwal export Firestore | T-01 |
 | T-17 | P3 | [ ] | Platform | Logging error client mobile (observability murah) | — |
 
+### 🚧 EPIC AKTIF — Migrasi Monorepo (2026-07-05) — rancangan: [14](14-migrasi-monorepo.md)
+
+> ⚠ **FREEZE:** selama T-51…T-55 berjalan, JANGAN kerjakan task kode lain di kedua app
+> (repo lama read-only; lihat aturan keras di doc 14). Task docs tetap boleh.
+> Protokol kerja Opus↔Sonnet: [workflow/AGENT-WORKFLOW.md](workflow/AGENT-WORKFLOW.md).
+
+| ID | Prioritas | Status | Pelaksana | Task | Dep |
+|----|:--------:|:------:|-----------|------|-----|
+| T-51 | P0 | [ ] | Sonnet | Rakit monorepo: subtree import 3 repo (histori utuh) + npm workspaces + push | — |
+| T-52 | P0 | [ ] | Sonnet | Backoffice hijau di monorepo (`next build`+lint+tsc) + pindah `firestore.rules` → `firebase/` | T-51 |
+| T-53 | P0 | [ ] | Sonnet | Mobile hijau di monorepo (tsc+lint+`expo start` di device) + `.easignore` | T-51 |
+| T-54 | P0 | [ ] | Sonnet+owner | EAS build preview APK dari monorepo + uji di HP | T-53 |
+| T-55 | P0 | [ ] | Owner (dipandu Opus) | Cutover Vercel: connected repo + Root Directory `apps/backoffice` | T-52 |
+| T-56 | P1 | [ ] | Sonnet | CI GitHub Actions (path filter per app) + branch protection `main` | T-55 |
+| T-57 | P1 | [ ] | Opus | CLAUDE.md root + port skills octobot (`seam-audit` dkk.) + `.claude/settings.json` | T-51 |
+| T-58 | P1 | [ ] | Sonnet | Kerangka kosong `packages/shared` + `transpilePackages` (TANPA pindah logika) | T-52, T-53 |
+| T-59 | P1 | [ ] | Owner (dipandu Opus) | Archive 3 repo lama + swap folder lokal + perbaiki link docs | T-54, T-55 |
+| T-60 | P2 | [ ] | Sonnet | Revisi AGENTS.md kedua app (izinkan verifikasi lint/tsc; rujuk workflow) | T-57 |
+| T-61 | P2 | [ ] | Owner (dipandu Opus) | Env Preview Vercel → Firebase dev (`venovian-toys-dev`); catat doc 09+13 | T-55 |
+
 ### Temuan review backoffice (2026-06-30) — lihat [detail](#detail-temuan-review-backoffice)
 
 | ID | Prioritas | Status | Area | Task | Verifikasi |
@@ -403,3 +423,6 @@ Catat perubahan status penting di sini (tanggal — ID — aksi):
 - 2026-06-30 — Review backoffice: T-18…T-32 ditambah (2 P0 verified, 5 P1, dst). 1 false-positive (pack line-total) ditolak setelah verifikasi.
 - 2026-06-30 — Penguatan struktural keuangan & scan area: T-33…T-40 (lihat [doc 11](11-fokus-keuangan-scan-area.md)).
 - 2026-06-30 — Review mobile: T-41…T-50 (1 P0, 6 P1). Jalur visit prospek = DIRECT (INT-1 terjawab; endpoint backoffice dead code). Mobile mengulang bug stok backoffice (T-42=T-22, T-43=T-21).
+- 2026-07-05 — Keputusan migrasi monorepo (owner + Fable): T-51…T-61 ditambah, FREEZE task kode selama T-51…T-55. Rancangan: [doc 14](14-migrasi-monorepo.md); protokol kerja: [workflow/AGENT-WORKFLOW.md](workflow/AGENT-WORKFLOW.md).
+- 2026-07-05 — T-16 dicicil: skrip `npm run backup` (read-only, per-project) di repo backoffice; backup prod pertama sukses (166 dok, 15 koleksi). Backup terjadwal/otomatis tetap terbuka di T-16.
+- 2026-07-05 — Repo `venovian-toys` di-rename → `venovian-toys-web` (Vercel tetap nempel, diverifikasi); repo kosong `ngadiono/venovian-toys` dibuat untuk monorepo.

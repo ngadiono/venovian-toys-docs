@@ -36,6 +36,10 @@ yang berbagi satu database Firebase yang sama.
 - [11 — Fokus: Keuangan & Scan Area](11-fokus-keuangan-scan-area.md) — penguatan dua area vital (tetap gratis)
 - [12 — Peta Sinkronisasi](12-peta-sinkronisasi.md) — **kontrak field denormalized** lintas app; checklist saat review seam
 - [13 — Perubahan Firebase Manual](13-firebase-perubahan-manual.md) — checklist index/rules/seed yang dikerjakan manual pemilik (dev → prod)
+- [14 — Migrasi Monorepo](14-migrasi-monorepo.md) — 🚧 **epic aktif**: rancangan & rencana eksekusi pindah ke monorepo (T-51…T-61)
+- [workflow/AGENT-WORKFLOW.md](workflow/AGENT-WORKFLOW.md) — **protokol kerja Opus (PM) ↔ Sonnet (coder)**, adaptasi octobot
+- [adr/](adr/) — Architecture Decision Records (ADR-001: monorepo)
+- [worklog/](worklog/) — catatan per sesi kerja (apa, keputusan, langkah berikutnya)
 
 ### Sumber kanonik di repo aplikasi
 | Topik | Lokasi |
